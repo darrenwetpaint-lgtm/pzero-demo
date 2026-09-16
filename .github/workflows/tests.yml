@@ -31,8 +31,29 @@ jobs:
         with:
           node-version: '22'
 
-      - name: Setup Application
-        run: composer setup
+      - name: Install PHP dependencies
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare CI application
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          touch database/database.sqlite
+          echo "DB_CONNECTION=sqlite" >> .env
+          echo "DB_DATABASE=$(pwd)/database/database.sqlite" >> .env
+          echo "CACHE_STORE=array" >> .env
+          echo "SESSION_DRIVER=array" >> .env
+          echo "QUEUE_CONNECTION=sync" >> .env
+          php artisan migrate --force
+
+      - name: Install Node dependencies
+        run: npm ci
+
+      - name: Generate Wayfinder routes
+        run: php artisan wayfinder:generate --with-form
+
+      - name: Build frontend
+        run: npm run build
 
       - name: Run CI Checks
         run: composer ci:check
